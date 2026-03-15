@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Dev Course Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f5f0; color: #1a1a1a; min-height: 100vh; }
+  header { background: #fff; border-bottom: 1px solid #e0e0d8; padding: 1rem 1.5rem; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+  header p { font-size: 12px; color: #888; margin-top: 2px; }
+  .container { max-width: 760px; margin: 0 auto; padding: 1.5rem 1rem; }
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .stat { background: #fff; border: 1px solid #e8e8e0; border-radius: 10px; padding: 0.75rem 1rem; }
+  .stat-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .stat-num { font-size: 22px; font-weight: 600; color: #1a1a1a; }
+  .progress-bar-wrap { background: #e8e8e0; border-radius: 100px; height: 8px; margin-bottom: 1.5rem; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 100px; background: #1D9E75; transition: width 0.4s; }
+  .milestone { margin-bottom: 1.25rem; background: #fff; border: 1px solid #e8e8e0; border-radius: 12px; overflow: hidden; }
+  .milestone-header { display: flex; align-items: center; gap: 10px; padding: 0.85rem 1rem; cursor: pointer; user-select: none; }
+  .milestone-header:hover { background: #fafaf8; }
+  .milestone-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 100px; white-space: nowrap; }
+  .m1 { background: #E1F5EE; color: #0F6E56; }
+  .m2 { background: #E6F1FB; color: #185FA5; }
+  .m3 { background: #FAEEDA; color: #854F0B; }
+  .m4 { background: #FBEAF0; color: #993556; }
+  .m5 { background: #EEEDFE; color: #534AB7; }
+  .milestone-title { font-size: 14px; font-weight: 600; color: #1a1a1a; flex: 1; }
+  .milestone-count { font-size: 12px; color: #888; }
+  .toggle-icon { font-size: 11px; color: #aaa; transition: transform 0.2s; }
+  .collapsed .toggle-icon { transform: rotate(-90deg); }
+  .module-list { display: flex; flex-direction: column; gap: 0; border-top: 1px solid #f0f0e8; }
+  .collapsed .module-list { display: none; }
+  .module-card { border-bottom: 1px solid #f0f0e8; }
+  .module-card:last-child { border-bottom: none; }
+  .module-header { display: flex; align-items: center; gap: 8px; padding: 0.65rem 1rem 0.65rem 1.25rem; cursor: pointer; }
+  .module-header:hover { background: #fafaf8; }
+  .module-name { font-size: 13px; font-weight: 500; color: #2a2a2a; flex: 1; }
+  .module-progress { font-size: 11px; color: #aaa; }
+  .mod-toggle { font-size: 10px; color: #ccc; transition: transform 0.2s; }
+  .module-card.open .mod-toggle { transform: rotate(90deg); }
+  .lessons { display: none; flex-direction: column; gap: 0; padding: 0.25rem 0 0.5rem 2.75rem; border-top: 1px solid #f5f5f0; }
+  .module-card.open .lessons { display: flex; }
+  .lesson { padding: 4px 1rem 4px 0; }
+  .lesson label { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 12px; color: #555; line-height: 1.6; }
+  .lesson input[type=checkbox] { margin-top: 3px; flex-shrink: 0; cursor: pointer; accent-color: #1D9E75; }
+  .lesson.done label { color: #bbb; text-decoration: line-through; }
+  .mini-prog { height: 3px; background: #f0f0e8; border-radius: 100px; margin: 0 1rem 0 1.25rem; overflow: hidden; display: block; }
+  .mini-prog-fill { height: 100%; background: #1D9E75; border-radius: 100px; transition: width 0.3s; }
+  @media (max-width: 480px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .stat-num { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Web Dev Course Tracker</h1>
+  <p>সহজ সরল সিম্পল — Mohammad Sajibul Islam</p>
+</header>
+
+<div class="container">
+  <div class="stats-row">
+    <div class="stat"><div class="stat-label">মোট লেসন</div><div class="stat-num" id="total-count">0</div></div>
+    <div class="stat"><div class="stat-label">সম্পন্ন</div><div class="stat-num" id="done-count" style="color:#1D9E75">0</div></div>
+    <div class="stat"><div class="stat-label">বাকি</div><div class="stat-num" id="remaining-count">0</div></div>
+    <div class="stat"><div class="stat-label">প্রগ্রেস</div><div class="stat-num" id="pct">0%</div></div>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-fill" style="width:0%"></div></div>
+  <div id="milestones-container"></div>
+</div>
+
+<script>
+const data = [
+  { milestone: "Milestone 1", cls: "m1", modules: [
+    { name: "Module 2 — CSS Fundamentals", lessons: ["CSS types (inline, internal, external)","Text color, measuring units","Selectors: id, class, universal, grouping","Mixed selectors, div, span","Border, border-radius, Margin","Box model: Padding, border, content","Display: none, hidden, inline, block","Background: color, image, repeat","Module summary & practice","CSS Selector animated"] },
+    { name: "Module 4 — HTML5 & Layout Basics", lessons: ["HTML5 vs HTML, audio, video, iframe","HTML5 semantic tags: nav, header, footer","HTML Form: label, fieldset, radio, checkbox","HTML Table: tr, th, td, colspan","CSS Flex layout basic overview","Horizontal/vertical center with Flex","Navigation: navbar & internal nav","Hero banner with Flexbox","Card sections","Module summary & practice"] },
+    { name: "Module 5 — Portfolio Project", lessons: ["Project overview & git setup","Google fonts, navbar, primary color","Banner content & portfolio image","Simple image background, about section","Flexbox for about info & skills","Technical skills, flex gap","Resume: Education & Experience","Footer & Form with Flex","Font Awesome & GitHub deploy","Module summary & practice"] },
+    { name: "Module 6 — Advanced CSS", lessons: ["Pseudo class, nth-child, last-child","Position: static, relative, absolute, fixed, sticky","z-index & pseudo elements"] }
+  ]},
+  { milestone: "Milestone 2", cls: "m2", modules: [
+    { name: "Module 7 — Responsive Design", lessons: ["CSS units & responsive design","Flexbox: direction, justify, align","Login form & flexible nav","CSS Grid: template columns, gap","Calendar with Grid & Flex","Basic media query","Responsive media query: small/medium/large","8 things to make a website responsive","Module summary & practice"] },
+    { name: "Module 8 — Advanced Grid & Responsive", lessons: ["Recap Flex, responsiveness","Analyse complex layouts","Grid gallery & responsive gallery","Grid span with simple layout","Complex layout with grid area","Responsive complex layout for tablet/mobile","Clone portfolio & browser dev tools","Responsive Skills & About section","Responsive Footer, Resume & Nav","Responsive Banner & multiple backgrounds","Module summary & practice"] },
+    { name: "Module 9 — G3 Architects Project", lessons: ["Project setup & Google Fonts","Banner content & styles","Responsive banner for mobile/medium","Teams section: Flex & Grid","Make Teams responsive","Facts section with Flex","Make Facts & sponsors responsive","Features section & badge","Module summary & GitHub Pages deploy"] },
+    { name: "Module 10 — CSS3 & Animation", lessons: ["Design rules & things to avoid","Resources for pictures","CSS overflow, text-overflow, ellipsis","Transform: rotate, scale, translate","CSS transitions","(optional) Cricket animation","(optional) Bounce animation","CSS custom properties: var, calc","Module summary & image optimization","Practice: Responsive Influencer Gear"] },
+    { name: "Module 11 — Tailwind CSS", lessons: ["Component vs utility design","Getting started with Tailwind","Typography, background, text, border","Spacing & box model","Flex layout & responsive flex","Grid layout & responsive grid","Simple card with Tailwind","Responsive card","Banner & module summary"] },
+    { name: "Module 12.5 — CSS Deep Dive", lessons: ["CSS specificity, style priority, !important","All CSS properties overview","Future strategy for HTML5 & CSS3"] }
+  ]},
+  { milestone: "Milestone 3", cls: "m3", modules: [
+    { name: "Module 15 — Loops", lessons: ["What is a loop, for loop intro","While loop intro","Problem solving with While loop","For loop intro","Problem solving with For loop","Different ways to use loops","Break and continue","(optional) Do While loop","Difference between loop types"] },
+    { name: "Module 16 — Strings & Objects", lessons: ["String vs array","String comparison, lowercase, uppercase, trim","Slice, join, concat, includes","Reverse a string: 3 ways","Object properties & values","What is Object (animated)","Get & set object properties","Keys, values, nested objects, delete","Loop an object","Module summary & practice"] },
+    { name: "Module 16.5 — Array Traversal", lessons: ["Array traversal with for/while","Reverse array with/without method","Sort array problems","Module summary & practice"] },
+    { name: "Module 17 — Functions", lessons: ["What are functions & syntax","Function concept visual","Function parameters & multiple params","How functions work: arguments vs parameters","Function return & variable assignment","Recap: conditional return, odd/even","Different types of parameters","Sum all numbers in array","Return all even numbers","Module summary & practice"] },
+    { name: "Module 18 — Problem Solving", lessons: ["Unit convert: inch/feet, miles/km","Leap year checker","Average of odd numbers","Remove duplicates from array","Math: abs, round, ceil, floor, random","JS Date & time intro","Swap variables & destructuring","Module summary"] },
+    { name: "Module 19 — JS Practice", lessons: ["Strawberry problem","Find max number in array","Add/multiply for wood requirements","Cheapest phone from array of objects","Total cost of shopping cart","(advanced) Multi-layer discount","Calculator: function inside function","Handle unexpected input errors","Module summary & practice"] },
+    { name: "Module 20 — Advanced Objects", lessons: ["(optional) Explore JS Objects","(advanced) Find matching product by search","Problem solving priority & course strategy"] }
+  ]},
+  { milestone: "Milestone 4", cls: "m4", modules: [
+    { name: "Module 21 — Tea House Project", lessons: ["Project overview & setup","Banner with rating badge","Featured section for tea","Green tea & grid layout","Grid layout with gradient","Customer review & relative positions","Relative & absolute positioning","Footer styles","Module summary & button gradient"] },
+    { name: "Module 22 — DOM", lessons: ["What is DOM, connect JS file","DOM intro (animated)","Traversing: getElementsByTagName","Traversing: getElementsByClassName vs getElementById","Traversing: querySelector, querySelectorAll","DOM traversing (animated)","Dynamic style, getAttribute, setAttribute","Styling DOM, add/remove CSS class","NodeList, htmlcollection, parentNode, createElement","Create elements & appendChild","Module summary"] },
+    { name: "Module 23 — Events", lessons: ["What is an Event, types of events","onclick handler: direct & via JS","addEventListener on a button","innerText update by events","Create a comment box","More event types & delete confirmation","(semi-advanced) Event bubble & stopPropagation","(advanced) Event delegation","Module summary","Basic JS Events all in one"] },
+    { name: "Module 24 — DaisyUI Project (Payoo)", lessons: ["Recap Tailwind & Hello DaisyUI","DaisyUI colors, themes, components","Explore & customize components","Project overview & style body","Payoo login page as Figma","Login logic & navigate to homepage","Homepage layout","Cashout form design","Cashout functionality","Recap Cashout & common function","Common function & Add Money form","Add Money feature & template literals","Show/hide features on click","Add transactions & practice task"] },
+    { name: "Module 25.5 — DOM Tips", lessons: ["When to use getElementById vs querySelector","(advanced) isNaN"] }
+  ]},
+  { milestone: "Milestone 5", cls: "m5", modules: [
+    { name: "Module 26 — ES6", lessons: ["var vs let vs const","Default parameters","Template strings","Arrow functions","Spread operator","Object & array destructuring","Keys, values, entries, seal, freeze","Nested objects, optional chaining","for...in, for...of"] },
+    { name: "Module 27 — JS Advanced Concepts", lessons: ["Primitive vs non-primitive types","null vs undefined","Truthy & falsy values","== vs ===, implicit conversion","Block scope, global scope, hoisting","(advanced) Closure","(optional) Callback function","(optional) Pass by reference vs value","map, forEach","filter, find, reduce","Module summary & interview questions"] },
+    { name: "Module 28 — API & Fetch", lessons: ["Internet, HTTP/HTTPS, API intro","Recap API & JSON","Load JSON with Fetch","Recap fetch & console data","Display post title list","Style post cards","Display todo list & conditional rendering","GET, POST, PUT, PATCH, DELETE","Summary, Debugger & Async/Await"] },
+    { name: "Module 29 — Vocabulary Project", lessons: ["Project setup & Font/Icon/DaisyUI","Responsive navbar & banner","Load & display all lessons","Load words by level & display cards","Design dynamic cards","Handle errors & empty lessons","Highlight active lesson & DaisyUI modal","Display details using modal","Show synonyms & spinner","Recap & implement search","Module summary & practice"] },
+    { name: "Module 30 — Local Storage", lessons: ["Read/write simple values","Get/set objects to localStorage","Simple shopping cart","(advanced) localStorage shopping cart","React JS installation"] }
+  ]}
+];
+
+const KEY = "wdcourse_v1";
+let state = JSON.parse(localStorage.getItem(KEY) || "{}");
+
+function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+function updateStats() {
+  let total = 0, done = 0;
+  data.forEach(ms => ms.modules.forEach(mod => mod.lessons.forEach((_, i) => {
+    total++;
+    if (state[mod.name + i]) done++;
+  })));
+  document.getElementById("total-count").textContent = total;
+  document.getElementById("done-count").textContent = done;
+  document.getElementById("remaining-count").textContent = total - done;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById("pct").textContent = pct + "%";
+  document.getElementById("prog-fill").style.width = pct + "%";
+}
+
+function getModDone(mod) {
+  return mod.lessons.filter((_, i) => state[mod.name + i]).length;
+}
+
+function getMsDone(ms) {
+  return ms.modules.reduce((s, m) => s + getModDone(m), 0);
+}
+
+function getMsTotal(ms) {
+  return ms.modules.reduce((s, m) => s + m.lessons.length, 0);
+}
+
+function render() {
+  const container = document.getElementById("milestones-container");
+  container.innerHTML = "";
+
+  data.forEach(ms => {
+    const msDiv = document.createElement("div");
+    msDiv.className = "milestone";
+
+    const msTotal = getMsTotal(ms);
+    const msDone = getMsDone(ms);
+
+    const header = document.createElement("div");
+    header.className = "milestone-header";
+    header.innerHTML = `
+      <span class="milestone-badge ${ms.cls}">${ms.milestone}</span>
+      <span class="milestone-title">${ms.modules.length} টি মডিউল</span>
+      <span class="milestone-count" id="ms-count-${ms.milestone.replace(' ','')}">${msDone}/${msTotal}</span>
+      <span class="toggle-icon">▼</span>
+    `;
+    header.addEventListener("click", () => msDiv.classList.toggle("collapsed"));
+
+    const modList = document.createElement("div");
+    modList.className = "module-list";
+
+    ms.modules.forEach(mod => {
+      const modTotal = mod.lessons.length;
+      const modDone = getModDone(mod);
+
+      const card = document.createElement("div");
+      card.className = "module-card";
+
+      const modHeader = document.createElement("div");
+      modHeader.className = "module-header";
+      modHeader.innerHTML = `
+        <span class="mod-toggle">▶</span>
+        <span class="module-name">${mod.name}</span>
+        <span class="module-progress" id="mp-${mod.name}">${modDone}/${modTotal}</span>
+      `;
+      modHeader.addEventListener("click", () => card.classList.toggle("open"));
+
+      const miniBar = document.createElement("div");
+      miniBar.className = "mini-prog";
+      const miniFill = document.createElement("div");
+      miniFill.className = "mini-prog-fill";
+      miniFill.id = "mf-" + mod.name;
+      miniFill.style.width = modTotal ? Math.round(modDone / modTotal * 100) + "%" : "0%";
+      miniBar.appendChild(miniFill);
+
+      const lessonsDiv = document.createElement("div");
+      lessonsDiv.className = "lessons";
+
+      mod.lessons.forEach((lesson, li) => {
+        const id = mod.name + li;
+        const row = document.createElement("div");
+        row.className = "lesson" + (state[id] ? " done" : "");
+
+        const lbl = document.createElement("label");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!state[id];
+        cb.addEventListener("change", () => {
+          state[id] = cb.checked;
+          row.className = "lesson" + (cb.checked ? " done" : "");
+          save();
+          updateStats();
+          const newDone = getModDone(mod);
+          document.getElementById("mp-" + mod.name).textContent = newDone + "/" + modTotal;
+          document.getElementById("mf-" + mod.name).style.width = Math.round(newDone / modTotal * 100) + "%";
+          const newMsDone = getMsDone(ms);
+          document.getElementById("ms-count-" + ms.milestone.replace(" ", "")).textContent = newMsDone + "/" + msTotal;
+        });
+
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(" " + lesson));
+        row.appendChild(lbl);
+        lessonsDiv.appendChild(row);
+      });
+
+      card.appendChild(modHeader);
+      card.appendChild(miniBar);
+      card.appendChild(lessonsDiv);
+      modList.appendChild(card);
+    });
+
+    msDiv.appendChild(header);
+    msDiv.appendChild(modList);
+    container.appendChild(msDiv);
+  });
+
+  updateStats();
+}
+
+render();
+</script>
+</body>
+</html>
